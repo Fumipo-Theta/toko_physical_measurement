@@ -7,7 +7,7 @@ from func_helper import pip, tee, identity
 import func_helper.func_helper.iterator as it
 import func_helper.func_helper.dictionary as d
 from matpos import FigureSizing
-
+from matdat.matdat.plot.action import DuplicateArg
 
 matchCsv = r"\.[cC](sv|SV)$"
 
@@ -339,7 +339,8 @@ class SiteObject:
 
 def bandPlot(xpos: Tuple[list], **kwargs):
     import matdat.matdat.plot as plot
-    return plot.yband(xpos=xpos, **kwargs)
+
+    return plot.yband(xpos=plot.multiple(*xpos), **kwargs)
 
 
 def genMaintenanceBox(maintenancePeriods: List[IPeriod_with_window], **kwargs):
@@ -462,8 +463,8 @@ def presetSubplot(default: PresetSetup):
 
         subplot = SubplotTime.create(**subplotStyle)\
         .add(
-            data=tuple(getFileList(matchCsv,*fileSelector)(directory)
-                       for directory in preset["directory"]) if type(preset["directory"]) is tuple else getFileList(matchCsv, *fileSelector)(preset["directory"]),
+            data=DuplicateArg(*[getFileList(matchCsv, *fileSelector)(directory)
+                       for directory in preset["directory"]]) if type(preset["directory"]) is tuple else getFileList(matchCsv, *fileSelector)(preset["directory"]),
             dataInfo=preset["dataInfo"],
             index=preset.get("index", None),
             plot=[*preset["plot"], *plot] if not plotOverwrite else plotOverwrite,
