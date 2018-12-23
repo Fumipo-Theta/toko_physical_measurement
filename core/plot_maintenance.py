@@ -7,7 +7,7 @@ from func_helper import pip, tee, identity
 import func_helper.func_helper.iterator as it
 import func_helper.func_helper.dictionary as d
 from matpos import FigureSizing
-from matdat.matdat.plot.action import DuplicateArg
+from matdat.matdat.plot.action import DuplicateLast
 
 matchCsv = r"\.[cC](sv|SV)$"
 
@@ -463,7 +463,7 @@ def presetSubplot(default: PresetSetup):
 
         subplot = SubplotTime.create(**subplotStyle)\
         .add(
-            data=DuplicateArg(*[getFileList(matchCsv, *fileSelector)(directory)
+            data=DuplicateLast(*[getFileList(matchCsv, *fileSelector)(directory)
                        for directory in preset["directory"]]) if type(preset["directory"]) is tuple else getFileList(matchCsv, *fileSelector)(preset["directory"]),
             dataInfo=preset["dataInfo"],
             index=preset.get("index", None),
