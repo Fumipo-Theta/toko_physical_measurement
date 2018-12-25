@@ -6,7 +6,247 @@ from tqdm import tqdm
 from IPython.display import display
 #import pandas.tseries.offsets as offsets
 from func_helper import pip
-from matdat import getFileList
+import func_helper.func_helper.dataframe as dataframe
+from matdat import getFileList, CsvReader
+import datetime
+
+from typing import List
+
+
+class VectorReadOption:
+    def __init__(self,
+                 read_directory: str,
+                 output_directory: str,
+                 start_datetime: datetime.datetime,
+                 observed_time_window: List[str],
+                 time_window: List[str],
+                 burst_time: int=2880,
+                 header_row: int=None,
+                 unit_timeshift: dict={
+                     "minutes": 10,
+                     "seconds": 1/16
+                 },
+                 column_name_timeshift: dict={
+                     "minutes": "Burst counter []",
+                     "seconds": "Ensemble counter []"
+                 },
+                 ):
+        self.read_directory = read_directory
+        self.output_directory = output_directory
+        self.start_datetime = start_datetime
+        self.observed_time_window = observed_time_window
+        self.time_window = time_window
+        self.burst_time = burst_time
+        self.header_row = header_row
+        self.unit_timeshift = unit_timeshift
+        self.column_name_timeshift = column_name_timeshift
+
+    def tlim(self):
+        return pd.to_datetime(self.time_window)
+
+    def tlim_observed(self):
+        return pd.to_datetime(self.observed_time_window)
+
+
+class TableConverter:
+    def __init__(self,
+                 option: VectorReadOption,
+                 reader=CsvReader,
+                 vhd_columns=[
+                     "Month",
+                     "Day",
+                     "Year",
+                     "Hour",
+                     "Minute",
+                     "Second",
+                     "Burst counter",
+                     "No of velocity samples",
+                     "Noise amplitude (Beam1)",
+                     "Noise amplitude (Beam2)",
+                     "Noise amplitude (Beam3)",
+                     "Noise correlation (Beam1)",
+                     "Noise correlation (Beam2)",
+                     "Noise correlation (Beam3)"
+                 ],
+                 sen_columns=[
+                     "Month",
+                     "Day",
+                     "Year",
+                     "Hour",
+                     "Minute",
+                     "Second",
+                     "Error code",
+                     "Status code",
+                     "Battery voltage",
+                     "Sound speed",
+                     "Heading",
+                     "Pitch",
+                     "Roll",
+                     "Temperature",
+                     "Analog input",
+                     "Checksum"
+                 ]
+                 ):
+        self.read_option = option
+        self.Reader = reader
+        self.vhd_columns = vhd_columns
+        self.sen_columns = sen_columns
+        self.dat_columns = {
+            "columns": [
+                "Burst counter []",
+                "Ensemble counter []",
+                "Velocity X [m/s]",
+                "Velocity Y [m/s]",
+                "Velocity Z [m/s]",
+                "Amplitude Beam1 []",
+                "Amplitude Beam2 []",
+                "Amplitude Beam3 []",
+                "SNR Beam1 [dB]",
+                "SNR Beam2 [dB]",
+                "SNR Beam3 [dB]",
+                "Correlation Beam1 [%]",
+                "Correlation Beam2 [%]",
+                "Correlation Beam3 [%]",
+                "Pressure [m]",
+                "Analog input1",
+                "Analog input2",
+                "Checksum (1=failed)",
+            ],
+            "drop": [
+                "Pressure [m]",
+                "Analog input1",
+                "Analog input2"
+            ]
+        }
+
+    @staticmethod
+    def convert_csv(path, column_names, output):
+        df = pd.read_csv(path, names=column_names, sep=r"\s+")
+
+        if not os.path.isdir(output):
+            os.makedirs(output)
+        output_path = os.path.join(output, os.path.basename(path)+".csv")
+
+        df.to_csv(output_path)
+
+    def convert_vhd(self):
+        TableConverter.convert_csv(
+            getFileList(r"\.vhd$")(self.read_option.read_directory).files()[0],
+            self.vhd_columns,
+            self.read_option.output_directory
+        )
+        print("vhd file converted to csv.")
+
+    def convert_sen(self):
+        TableConverter.convert_csv(
+            getFileList(r"\.sen$")(self.read_option.read_directory).files()[0],
+            self.vhd_columns,
+            self.read_option.output_directory
+        )
+        print("sen file converted to csv.")
+
+    def convert_dat(self):
+        """
+        datファイルをcsvファイルに変換していない場合
+        Burst counterと Ensemble counterに基づく時刻を追加して
+        datファイルからDataFrameを構築する.
+        """
+        df = read_original_dat(
+            self.read_option,
+            self.dat_columns,
+            sep=r"\s+",
+            preprocess=[
+                resetCounter,
+                timeShifter,
+                #lambda _,__: tee(display),
+                lambda meta, _: setShiftedTime(
+                    meta.start_datetime,
+                    units=meta.unit_timeshift,
+                    columns={
+                        "minutes": "burstCount",
+                        "seconds": "ensembleCount"
+                    },
+                    new="datetime_reset"
+                ),
+            ]
+        )
+
+        df.set_index(pd.to_datetime(df.datetime), inplace=True)
+        print(len(df)/2880/6/24, "days observation")
+
+        """
+        vhd ファイルに基づく時間の振り直し
+        """
+        vhd = self.read_vhd()
+        datetime_by_vhd = []
+        total_burst = df["Burst counter []"].max()
+        start_time = self.read_option.start_datetime
+        for i in tqdm(range(total_burst)):
+            # vhd データからburst開始時刻をもとめる
+            start_time = start_time + \
+                datetime.timedelta(minutes=vhd["delta_burst_time"][i])
+            shift_seconds = shiftTimeBy(start_time, seconds=1/16)
+
+            ensemble_count = df[df["Burst counter []"]
+                                == i+1]["Ensemble counter []"]
+            for e in ensemble_count:
+                # ensemble カウントごとに1/16秒足す
+                datetime_by_vhd.append(shift_seconds(seconds=e))
+
+        df = df.assign(datetime_by_vhd=datetime_by_vhd)
+        df.set_index("datetime_by_vhd", inplace=True)
+        df_count = df.groupby("Burst counter []").tail(1)
+        print(df_count.index)
+
+        df.to_csv(self.read_option.output_directory+"dat.csv")
+
+    def read_vhd(self):
+        path = getFileList(r"\.vhd\.csv$")(
+            self.read_option.output_directory).files()[0]
+
+        vhd = self.Reader.create()\
+            .setPath(path)\
+            .read(0)\
+            .assemble(
+                toDateTime,
+                dataframe.setTimeSeriesIndex("datetime")
+        ).df
+
+        # バースト時刻の差 (min)
+        delta_burst_time = [0]
+        vhd_index = vhd.index
+
+        for i in range(1, len(vhd_index)):
+            time_delta = vhd_index[i] - vhd_index[i-1]
+            delta_burst_time.append(time_delta.seconds/60)
+
+        vhd = vhd.assign(delta_burst_time=delta_burst_time)
+        return vhd
+
+    def read_sen(self):
+        path = getFileList(r"\.sen\.csv$")(
+            self.read_option.output_directory).files()[0]
+
+        sen = self.Reader.create()\
+            .setPath(path)\
+            .read(0)\
+            .assemble(
+                toDateTime,
+                dataframe.setTimeSeriesIndex("datetime")
+        ).df
+        return sen
+
+    def read_dat(self):
+        dat = pd.read_csv(getFileList(r"dat\.csv")(
+            self.read_option.output_directory).files(True)[0], index_col=0, parse_dates=[0])
+        return dat
+
+    def get_dataframes(self):
+        vhd = self.read_vhd()
+        sen = self.read_sen()
+        dat = self.read_dat()
+
+        return (vhd, sen, dat)
 
 
 def shiftTimeBy(start, **shift_units):
@@ -160,29 +400,29 @@ def test3():
     print(set(d.keys()) == set(e.keys()))
 
 
-def timeShifter(meta, common):
+def timeShifter(meta: VectorReadOption, common):
     return setShiftedTime(
-        meta["start"],
-        units=meta["units_timeShift"],
-        columns=meta["columns_timeShift"]
+        meta.start_datetime,
+        units=meta.unit_timeshift,
+        columns=meta.column_name_timeshift
     )
 
 
-def resetCounter(meta, common):
+def resetCounter(meta: VectorReadOption, common):
     def resetter(df):
 
-        burstCount = np.ceil((df.index.values + 1) / meta["burstTime"])
+        burstCount = np.ceil((df.index.values + 1) / meta.burst_time)
         ensembleCount = df.index.values - \
-            (burstCount - 1) * meta["burstTime"] + 1
+            (burstCount - 1) * meta.burst_time + 1
         # print(burstCount)
         # print(ensembleCount)
         return df.assign(burstCount=burstCount, ensembleCount=ensembleCount)
     return resetter
 
 
-def read_original_dat(meta, common, sep=",", preprocess=[timeShifter]):
+def read_original_dat(meta: VectorReadOption, common, sep=",", preprocess=[timeShifter]):
 
-    files = getFileList(r"\.dat$")(meta["directory"]).files()
+    files = getFileList(r"\.dat$")(meta.read_directory).files(verbose=True)
 
     dfs = []
     for file in files:
@@ -191,7 +431,7 @@ def read_original_dat(meta, common, sep=",", preprocess=[timeShifter]):
             sep=sep,
             chunksize=50000,
             names=common["columns"],
-            header=meta["header"]
+            header=meta.header_row
         )
 
         df = pd.concat(
