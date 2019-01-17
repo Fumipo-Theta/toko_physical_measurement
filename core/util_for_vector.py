@@ -140,7 +140,7 @@ class TableConverter:
     def convert_sen(self):
         TableConverter.convert_csv(
             getFileList(r"\.sen$")(self.read_option.read_directory).files()[0],
-            self.vhd_columns,
+            self.sen_columns,
             self.read_option.output_directory
         )
         print("sen file converted to csv.")
