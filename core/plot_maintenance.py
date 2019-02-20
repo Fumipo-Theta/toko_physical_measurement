@@ -173,7 +173,7 @@ class IPeriodStorage:
     def get_end_dates(self) -> List[str]:
         pass
 
-    def get_date_pairs(self) -> List[Tuple[str,str]]:
+    def get_date_pairs(self) -> List[Tuple[str, str]]:
         pass
 
 
@@ -234,10 +234,17 @@ class SiteObject:
         ->メンテンナンス開始日の00:00:00から, 終了日の24:00:00までとする.
     """
 
+    def __new__(cls, *arg, **kwargs):
+        return super().__new__(cls)
+
     def __init__(self, site_name: str):
         self.name = site_name
-        self.maintenance = SiteObject.IPeriodStorage()
-        self.interval = SiteObject.IPeriodStorage()
+        self.maintenance = {
+            "default": SiteObject.IPeriodStorage()
+        }
+        self.interval = {
+            "default": SiteObject.IPeriodStorage()
+        }
 
     def get_name(self) -> str:
         return self.name
@@ -245,61 +252,68 @@ class SiteObject:
     def get_file_selector(self) -> List[str]:
         return [self.get_name()]
 
-    def set_maintenance(self, list_of_periods: List[List[str]]):
+    def set_maintenance(self, list_of_periods: List[List[str]], key: str="default"):
         """
         arg = [[str,str], [str,str],...]
         """
+        if key not in self.maintenance:
+            self.maintenance[key] = SiteObject.IPeriodStorage()
+
         for p in list_of_periods:
-            self.maintenance.set_a_period(p)
+            self.maintenance[key].set_a_period(p)
         return self
 
     def get_maintenance(
         self,
         start_dates: Optional[List[str]]=None,
-        end_dates: Optional[List[str]]=None
-        ) -> List[Tuple[List[str], List[str]]]:
-
+        end_dates: Optional[List[str]]=None,
+        key: str="default"
+    ) -> List[Tuple[List[str], List[str]]]:
+        _key = "default" if key not in self.maintenance else key
         return SiteObject._get_periods(
-            self.maintenance,
+            self.maintenance[_key],
             start_dates,
             end_dates
         )
 
-    def set_interval(self, list_of_periods: List[List[str]]):
+    def set_interval(self, list_of_periods: List[List[str]], key: str="default"):
+        if key not in self.interval:
+            self.interval[key] = SiteObject.IPeriodStorage()
+
         for p in list_of_periods:
-            self.interval.set_a_period(p)
+            self.interval[key].set_a_period(p)
         return self
 
     def get_interval(
         self,
         start_dates: Optional[List[str]]=None,
-        end_dates: Optional[List[str]]=None
-        ) -> List[Tuple[List[str], List[str]]]:
-
+        end_dates: Optional[List[str]]=None,
+        key: str="default"
+    ) -> List[Tuple[List[str], List[str]]]:
+        _key = "default" if key not in self.interval else key
         return SiteObject._get_periods(
-            self.interval,
+            self.interval[_key],
             start_dates,
             end_dates
         )
 
-    def get_start_dates_of_maintenance(self) -> List[str]:
-        return SiteObject._collect_start_dates(self.maintenance)
+    def get_start_dates_of_maintenance(self, key="default") -> List[str]:
+        return SiteObject._collect_start_dates(self.maintenance[key])
 
-    def get_start_dates_of_interval(self) -> List[str]:
-        return SiteObject._collect_start_dates(self.interval)
+    def get_start_dates_of_interval(self, key="default") -> List[str]:
+        return SiteObject._collect_start_dates(self.interval[key])
 
-    def get_end_dates_of_maintenance(self) -> List[str]:
-        return SiteObject._collect_end_dates(self.maintenance)
+    def get_end_dates_of_maintenance(self, key="default") -> List[str]:
+        return SiteObject._collect_end_dates(self.maintenance[key])
 
-    def get_end_dates_of_interval(self) -> List[str]:
-        return SiteObject._collect_end_dates(self.interval)
+    def get_end_dates_of_interval(self, key="default") -> List[str]:
+        return SiteObject._collect_end_dates(self.interval[key])
 
-    def get_date_pairs_of_maintenance(self) -> List[Tuple[str,str]]:
-        return SiteObject._collect_date_pairs(self.maintenance)
+    def get_date_pairs_of_maintenance(self, key="default") -> List[Tuple[str, str]]:
+        return SiteObject._collect_date_pairs(self.maintenance[key])
 
-    def get_date_pairs_of_interval(self) -> List[Tuple[str, str]]:
-        return SiteObject._collect_date_pairs(self.interval)
-
+    def get_date_pairs_of_interval(self, key="default") -> List[Tuple[str, str]]:
+        return SiteObject._collect_date_pairs(self.interval[key])
 
     @staticmethod
     def _collect_start_dates(storage: IPeriodStorage) -> List[str]:
@@ -310,7 +324,7 @@ class SiteObject:
         return storage.get_end_dates()
 
     @staticmethod
-    def _collect_date_pairs(storage: IPeriodStorage) -> List[Tuple[str,str]]:
+    def _collect_date_pairs(storage: IPeriodStorage) -> List[Tuple[str, str]]:
         return storage.get_date_pairs()
 
     @staticmethod
@@ -379,7 +393,7 @@ def genMaintenanceBox(maintenancePeriods: List[IPeriod_with_window], **kwargs):
             it.mapping(pd.to_datetime),
             tuple
         )(maintenancePeriods), **kwargs
-    ) if len(maintenancePeriods) > 0 else bandPlot((None))
+    ) if len(maintenancePeriods) > 0 else bandPlot([None])
 
 
 def presetSubplot(default: PresetSetup):
@@ -455,16 +469,16 @@ def presetSubplot(default: PresetSetup):
     def as_tuple(ite):
         return ite if type(ite) is tuple else tuple(ite)
 
-    def generate(preset_name: str, fileSelector: list=[], plot=[], option={}, limit={}, style={}, plotOverwrite=[],**kwargs):
+    def generate(preset_name: str, fileSelector: list=[], plot=[], option={}, limit={}, style={}, plotOverwrite=[], **kwargs):
         subplotStyle = {**default.get_axes_style(), **style}
         subplotLimit = {**default.get_limit("x"), **limit}
 
         preset = default.get_preset().get(preset_name)
 
         subplot = SubplotTime.create(**subplotStyle)\
-        .add(
+            .add(
             data=DuplicateLast(*[getFileList(matchCsv, *fileSelector)(directory)
-                       for directory in preset["directory"]]) if type(preset["directory"]) is tuple else getFileList(matchCsv, *fileSelector)(preset["directory"]),
+                                 for directory in preset["directory"]]) if type(preset["directory"]) is tuple else getFileList(matchCsv, *fileSelector)(preset["directory"]),
             dataInfo=preset["dataInfo"],
             index=preset.get("index", None),
             plot=[*preset["plot"], *plot] if not plotOverwrite else plotOverwrite,
@@ -567,10 +581,10 @@ def totalPeriodAtSite(default: PresetSetup):
         subplotStyle = {**default.get_axes_style(), **style}
         subplotLimit = {**default.get_limit("x"), **limit}
 
-        maintenanceBox = genMaintenanceBox(site.get_maintenance())
-        intervalBox = genMaintenanceBox(site.get_interval())
-
         for name in machineNames:
+            maintenanceBox = genMaintenanceBox(site.get_maintenance(key=name))
+            intervalBox = genMaintenanceBox(site.get_interval(key=name))
+
             figure.add_subplot(
                 presetSubplot(default)(
                     name,
@@ -684,15 +698,15 @@ def maintenanceAtSite(default: PresetSetup):
 
         for start_date, end_date in unique_maintenance_date_pairs:
 
-
             subplotLimit = {"xlim": site.get_maintenance([start_date], [end_date])[0].get_period()[1],
-             **limit}
+                            **limit}
 
             figure = Figure()
 
-            maintenanceBox = genMaintenanceBox(site.get_maintenance([start_date],[end_date]))
-
             for name in machineNames:
+                maintenanceBox = genMaintenanceBox(
+                    site.get_maintenance([start_date], [end_date], key=name))
+
                 figure.add_subplot(
                     presetSubplot(default)(
                         name,
@@ -705,8 +719,8 @@ def maintenanceAtSite(default: PresetSetup):
                 )
 
             save = actionSavePNG(
-              "./image/"+site.get_name()+"/" if saveDir == None else saveDir,
-              f'{site.get_name()+file}-maintenance-{start_date}-{end_date}'
+                "./image/"+site.get_name()+"/" if saveDir == None else saveDir,
+                f'{site.get_name()+file}-maintenance-{start_date}-{end_date}'
             )
 
             returns.append(
@@ -794,8 +808,9 @@ def totalPeriodForMachine(default: PresetSetup):
         subplotLimit = {**default.get_limit("x"), **limit}
 
         for site in sites:
-            maintenanceBox = genMaintenanceBox(site.get_maintenance())
-            intervalBox = genMaintenanceBox(site.get_interval())
+            maintenanceBox = genMaintenanceBox(
+                site.get_maintenance(key=machineName))
+            intervalBox = genMaintenanceBox(site.get_interval(key=machineName))
 
             figure.add_subplot(
                 presetSubplot(default)(
@@ -803,7 +818,7 @@ def totalPeriodForMachine(default: PresetSetup):
                     fileSelector=site.get_file_selector(),
                     plot=[maintenanceBox, intervalBox],
                     option={},
-                    ylabel = site.get_name(),
+                    ylabel=site.get_name(),
                     style=subplotStyle,
                     **subplotLimit
                 ),
@@ -911,16 +926,16 @@ def maintenanceForMachine(default: PresetSetup):
             # siteごとにメンテナンスの回数が異なる.
             subplotLimit = {
                 "xlim": pip(
-                    it.mapping(lambda so: so.get_maintenance([start_date],[end_date])),
-                    it.filtering(lambda p: len(p) >0),
+                    it.mapping(lambda so: so.get_maintenance(
+                        [start_date], [end_date])),
+                    it.filtering(lambda p: len(p) > 0),
                     list
-                )(site_objects)[0][0].get_period()[1]
-                , **limit}
+                )(site_objects)[0][0].get_period()[1], **limit}
 
             for so in site_objects:
 
                 maintenanceBox = genMaintenanceBox(so.get_maintenance(
-                    [start_date], [end_date]))
+                    [start_date], [end_date], key=machineName))
 
                 figure.add_subplot(
                     presetSubplot(default)(
@@ -928,7 +943,7 @@ def maintenanceForMachine(default: PresetSetup):
                         fileSelector=so.get_file_selector(),
                         plot=[maintenanceBox],
                         option={},
-                        ylabel = so.get_name(),
+                        ylabel=so.get_name(),
                         style=subplotStyle,
                         limit=subplotLimit
                     ),
@@ -936,19 +951,19 @@ def maintenanceForMachine(default: PresetSetup):
                 )
 
             save = actionSavePNG(
-                    f'./image/{machineName if saveDir is None else saveDir}/',
-                    f'{machineName}{file}-maintenance-{start_date}-{end_date}'
+                f'./image/{machineName if saveDir is None else saveDir}/',
+                f'{machineName}{file}-maintenance-{start_date}-{end_date}'
             )
 
             returns.append(
-                    (
-                        figure,
-                        save,
-                        {
-                            "style": subplotStyle,
-                            "limit": subplotLimit
-                        }
-                    )
+                (
+                    figure,
+                    save,
+                    {
+                        "style": subplotStyle,
+                        "limit": subplotLimit
+                    }
+                )
             )
 
         return returns
