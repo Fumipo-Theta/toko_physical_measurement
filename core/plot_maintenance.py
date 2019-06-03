@@ -2,12 +2,12 @@ from typing import List, Dict, Tuple, Optional
 import pandas as pd
 import numpy as np
 
-from matdat import Figure, SubplotTime, actionSavePNG, getFileList
+from structured_plot import Figure, SubplotTime, save_plot, FigureSizing
+from structured_plot.plot_action.action import DuplicateLast
+from data_loader import PathList
 from func_helper import pip, tee, identity
 import func_helper.func_helper.iterator as it
 import func_helper.func_helper.dictionary as d
-from matpos import FigureSizing
-from matdat.matdat.plot.action import DuplicateLast
 
 matchCsv = r"\.[cC](sv|SV)$"
 
@@ -352,7 +352,7 @@ class SiteObject:
 
 
 def bandPlot(xpos: Tuple[list], **kwargs):
-    import matdat.matdat.plot as plot
+    import structured_plot.plot_action as plot
 
     return plot.yband(xpos=plot.multiple(*xpos), **kwargs)
 
@@ -469,16 +469,21 @@ def presetSubplot(default: PresetSetup):
     def as_tuple(ite):
         return ite if type(ite) is tuple else tuple(ite)
 
+    def get_csv_file_list(directorys, file_selector):
+        if type(directorys) is tuple:
+            return [PathList.search(matchCsv, *file_selector)(directory) for directory in directorys]
+        else:
+            return [PathList.search(matchCsv, *file_selector)(directorys)]
+
     def generate(preset_name: str, fileSelector: list=[], plot=[], option={}, limit={}, style={}, plotOverwrite=[], **kwargs):
         subplotStyle = {**default.get_axes_style(), **style}
         subplotLimit = {**default.get_limit("x"), **limit}
 
         preset = default.get_preset().get(preset_name)
 
-        subplot = SubplotTime.create(**subplotStyle)\
+        subplot = SubplotTime(**subplotStyle)\
             .add(
-            data=DuplicateLast(*[getFileList(matchCsv, *fileSelector)(directory)
-                                 for directory in preset["directory"]]) if type(preset["directory"]) is tuple else getFileList(matchCsv, *fileSelector)(preset["directory"]),
+            data=DuplicateLast(*get_csv_file_list(preset["directory"], fileSelector)),
             dataInfo=preset["dataInfo"],
             index=preset.get("index", None),
             plot=[*preset["plot"], *plot] if not plotOverwrite else plotOverwrite,
@@ -573,10 +578,7 @@ def totalPeriodAtSite(default: PresetSetup):
     def generate(site: SiteObject, machineNames: List[str], limit={}, style={}, saveDir=None, file="", figure=None):
 
         if figure == None:
-            figure = Figure({
-                **default.get_figure_style(),
-                **style,
-            })
+            figure = Figure()
 
         subplotStyle = {**default.get_axes_style(), **style}
         subplotLimit = {**default.get_limit("x"), **limit}
@@ -593,10 +595,10 @@ def totalPeriodAtSite(default: PresetSetup):
                     style=subplotStyle,
                     limit=subplotLimit
                 ),
-                name=name
+                names=name
             )
 
-        save = actionSavePNG(
+        save = save_plot(
             "./image/"+site.get_name()+"/" if saveDir == None else saveDir,
             site.get_name()+file
         )
@@ -715,10 +717,10 @@ def maintenanceAtSite(default: PresetSetup):
                         style=subplotStyle,
                         limit=subplotLimit
                     ),
-                    name=name
+                    names=name
                 )
 
-            save = actionSavePNG(
+            save = save_plot(
                 "./image/"+site.get_name()+"/" if saveDir == None else saveDir,
                 f'{site.get_name()+file}-maintenance-{start_date}-{end_date}'
             )
@@ -799,10 +801,7 @@ def totalPeriodForMachine(default: PresetSetup):
     def generate(sites: List[SiteObject], machineName: str, limit={}, style={}, saveDir=None, file="", figure=None):
 
         if figure == None:
-            figure = Figure({
-                **default.get_figure_style(),
-                **style,
-            })
+            figure = Figure()
 
         subplotStyle = {**default.get_axes_style(), **style}
         subplotLimit = {**default.get_limit("x"), **limit}
@@ -822,10 +821,10 @@ def totalPeriodForMachine(default: PresetSetup):
                     style=subplotStyle,
                     **subplotLimit
                 ),
-                name=machineName+"-"+site.get_name()
+                names=machineName+"-"+site.get_name()
             )
 
-        save = actionSavePNG(
+        save = save_plot(
             "./image/"+machineName+"/" if saveDir == None else saveDir,
             machineName+file+"-all"
         )
@@ -947,10 +946,10 @@ def maintenanceForMachine(default: PresetSetup):
                         style=subplotStyle,
                         limit=subplotLimit
                     ),
-                    name=machineName+"-"+so.get_name()
+                    names=machineName+"-"+so.get_name()
                 )
 
-            save = actionSavePNG(
+            save = save_plot(
                 f'./image/{machineName if saveDir is None else saveDir}/',
                 f'{machineName}{file}-maintenance-{start_date}-{end_date}'
             )
@@ -1041,7 +1040,7 @@ def addLayeredPlot(default: PresetSetup, maintenance: dict, siteSymbol: dict):
     def generate(sites: List[str], machine: str, option={}, limit={}, style={}, saveDir=None, file="", figure=None):
 
         if figure == None:
-            figure = Figure({**default.get_figure_style(), **style})
+            figure = Figure()
 
         subplotLimit = {**default.get_limit("x"), **limit}
         subplotStyle = {**default.get_axes_style(), **style}
@@ -1062,7 +1061,7 @@ def addLayeredPlot(default: PresetSetup, maintenance: dict, siteSymbol: dict):
 
         figure.add_subplot(subplot)
 
-        save = actionSavePNG(
+        save = save_plot(
             "./image/"+machine+"/" if saveDir == None else saveDir,
             machine+file+"-all-layered"
         )

@@ -1,6 +1,6 @@
 import dataclasses
 from typing import List, Dict
-from matdat.matdat.plot.action import PlotAction
+from structured_plot.plot_action.action import PlotAction
 
 
 class PresetSetting(dataclasses):
