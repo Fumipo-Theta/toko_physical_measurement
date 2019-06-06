@@ -7,7 +7,7 @@ from IPython.display import display
 #import pandas.tseries.offsets as offsets
 from func_helper import pip
 import func_helper.func_helper.dataframe as dataframe
-from data_loader import getFileList
+from data_loader import PathList
 from data_loader.data_loader.csv_reader import CsvReader
 import datetime
 
@@ -132,7 +132,7 @@ class TableConverter:
 
     def convert_vhd(self):
         TableConverter.convert_csv(
-            getFileList(r"\.vhd$")(self.read_option.read_directory).files()[0],
+            PathList.match(r"\.vhd$")(self.read_option.read_directory).files()[0],
             self.vhd_columns,
             self.read_option.output_directory
         )
@@ -140,7 +140,7 @@ class TableConverter:
 
     def convert_sen(self):
         TableConverter.convert_csv(
-            getFileList(r"\.sen$")(self.read_option.read_directory).files()[0],
+            PathList.match(r"\.sen$")(self.read_option.read_directory).files()[0],
             self.sen_columns,
             self.read_option.output_directory
         )
@@ -202,7 +202,7 @@ class TableConverter:
         df.to_csv(self.read_option.output_directory+"dat.csv")
 
     def read_vhd(self):
-        path = getFileList(r"\.vhd\.csv$")(
+        path = PathList.match(r"\.vhd\.csv$")(
             self.read_option.output_directory).files()[0]
 
         vhd = self.Reader.create()\
@@ -225,7 +225,7 @@ class TableConverter:
         return vhd
 
     def read_sen(self):
-        path = getFileList(r"\.sen\.csv$")(
+        path = PathList.match(r"\.sen\.csv$")(
             self.read_option.output_directory).files()[0]
 
         sen = self.Reader.create()\
@@ -238,7 +238,7 @@ class TableConverter:
         return sen
 
     def read_dat(self):
-        dat = pd.read_csv(getFileList(r"dat\.csv")(
+        dat = pd.read_csv(PathList.match(r"dat\.csv")(
             self.read_option.output_directory).files(True)[0], index_col=0, parse_dates=[0])
         return dat
 
@@ -423,7 +423,7 @@ def resetCounter(meta: VectorReadOption, common):
 
 def read_original_dat(meta: VectorReadOption, common, sep=",", preprocess=[timeShifter]):
 
-    files = getFileList(r"\.dat$")(meta.read_directory).files(verbose=True)
+    files = PathList.match(r"\.dat$")(meta.read_directory).files(verbose=True)
 
     dfs = []
     for file in files:

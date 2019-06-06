@@ -471,9 +471,9 @@ def presetSubplot(default: PresetSetup):
 
     def get_csv_file_list(directorys, file_selector):
         if type(directorys) is tuple:
-            return [PathList.search(matchCsv, *file_selector)(directory) for directory in directorys]
+            return [PathList.match(matchCsv, *file_selector)(directory) for directory in directorys]
         else:
-            return [PathList.search(matchCsv, *file_selector)(directorys)]
+            return [PathList.match(matchCsv, *file_selector)(directorys)]
 
     def generate(preset_name: str, fileSelector: list=[], plot=[], option={}, limit={}, style={}, plotOverwrite=[], **kwargs):
         subplotStyle = {**default.get_axes_style(), **style}
