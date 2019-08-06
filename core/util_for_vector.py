@@ -6,7 +6,7 @@ from tqdm import tqdm
 from IPython.display import display
 #import pandas.tseries.offsets as offsets
 from func_helper import pip
-import func_helper.func_helper.dataframe as dataframe
+import dataframe_helper as dataframe
 from data_loader import PathList
 from data_loader.data_loader.csv_reader import CsvReader
 import datetime

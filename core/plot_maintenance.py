@@ -6,8 +6,8 @@ from structured_plot import Figure, SubplotTime, save_plot, FigureSizing
 from structured_plot.plot_action.action import DuplicateLast
 from data_loader import PathList
 from func_helper import pip, tee, identity
-import func_helper.func_helper.iterator as it
-import func_helper.func_helper.dictionary as d
+import iter_helper as it
+import dict_helper as d
 
 matchCsv = r"\.[cC](sv|SV)$"
 
