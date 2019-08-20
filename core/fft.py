@@ -15,7 +15,7 @@ class FFT:
     fft_freq
     """
 
-    def __init__(self, signal, dt=None, fs=None):
+    def __init__(self, signal, dt=None, fs=None, window=None):
         """
         Parameters
         ----------
@@ -25,6 +25,7 @@ class FFT:
             Time interval of sampling
         fs: int | float
             Samping frequency
+        window: window function
         """
         if dt is None and fs is None:
             raise Exception("Arg of either 'dt' or 'fs' is required.")
@@ -32,7 +33,18 @@ class FFT:
         self.fs = fs if fs is not None else 1/dt
         self.n = len(signal)
         self.fft_freq = fftpack.fftfreq(n=self.n, d=1/self.fs)
-        self.fft_res = fftpack.fft(signal)
+        self.window = window
+        _signal = signal if window is None else signal * window(self.n)
+        self.fft_res = fftpack.fft(_signal)
+
+    def __repr__(self):
+        return f"""
+        Result of FFT 
+        -------------
+        Signal length: {self.n}
+        Sampling frequency: {self.fs}
+        Window function: {'rectangle' if self.window is None else self.window}
+        """
 
     def fft_raw(self):
         return self.fft_res
