@@ -1,4 +1,5 @@
 import os
+import shutil
 import numpy as np
 import pandas as pd
 import datetime
@@ -15,12 +16,17 @@ from typing import List
 
 
 class VectorReadOption:
+    """
+    Option for converting measured data of Vector
+    """
+
     def __init__(self,
                  read_directory: str,
                  output_directory: str,
                  start_datetime: datetime.datetime,
                  observed_time_window: List[str],
                  time_window: List[str],
+                 inverted_coordinate: False,
                  burst_time: int=2880,
                  header_row: int=None,
                  unit_timeshift: dict={
@@ -32,11 +38,40 @@ class VectorReadOption:
                      "seconds": "Ensemble counter []"
                  },
                  ):
+        """
+        Parameters
+        ----------
+        read_directory: str
+            Path to directory where original vector data exists
+        output_directory: str
+            Path to directory where converted files are put
+        start_datetime: datetime.datetime
+            Datetime of the first data.
+        observed_time_window: List[str]
+            2 datetimes for time range when the equipment is in water.
+        time_window: List[str]
+            2 datetimes for time range when power of the equipment was on.
+        inverted_coordinate: bool
+            Flag whether Z coordinate is to below.
+            Default is False (to above).
+        burst_time: int
+            Number of measurment in each burst.
+            Default value is 2880.
+        header_row: int
+            Row number of the header column.
+            Default value is None (the first row is used).
+        unit_timeshift: Dict[str, float]
+            Unit of times and their coefficient. Used together with option 'column_name_time_shift'
+        column_name_time_shift: Dict(str, str)
+            Unit of times and names of columns used as coefficient of time shifting.
+            Resolution of time in original dat file is upto seconds. Those 2 options are used for reset time indexes.
+        """
         self.read_directory = read_directory
         self.output_directory = output_directory
         self.start_datetime = start_datetime
         self.observed_time_window = observed_time_window
         self.time_window = time_window
+        self.inverted_coordinate = inverted_coordinate
         self.burst_time = burst_time
         self.header_row = header_row
         self.unit_timeshift = unit_timeshift
@@ -46,10 +81,28 @@ class VectorReadOption:
         return pd.to_datetime(self.time_window)
 
     def tlim_observed(self):
+        """
+        Returns an array of datetimes with lenth 2 which indicates time range when the equipment is in water.
+        """
         return pd.to_datetime(self.observed_time_window)
 
 
-class TableConverter:
+class VectorConverter:
+    """
+    Convert Vector data and read the data.
+
+    Methods
+    -------
+    copy_hdr
+    convert_sen
+    convert_vhd
+    convert_dat
+    read_sen
+    read_vhd
+    read_dat
+    get_dataframes
+    """
+
     def __init__(self,
                  option: VectorReadOption,
                  reader=CsvReader,
@@ -130,9 +183,18 @@ class TableConverter:
 
         df.to_csv(output_path)
 
+    def copy_hdr(self):
+        path = PathList.match(r"\.hdr$")(
+            self.read_option.read_directory).files()[0]
+        shutil.copy(path, os.path.join(
+            self.read_option.output_directory,
+            os.path.basename(path)
+        ))
+
     def convert_vhd(self):
         TableConverter.convert_csv(
-            PathList.match(r"\.vhd$")(self.read_option.read_directory).files()[0],
+            PathList.match(r"\.vhd$")(
+                self.read_option.read_directory).files()[0],
             self.vhd_columns,
             self.read_option.output_directory
         )
@@ -140,7 +202,8 @@ class TableConverter:
 
     def convert_sen(self):
         TableConverter.convert_csv(
-            PathList.match(r"\.sen$")(self.read_option.read_directory).files()[0],
+            PathList.match(r"\.sen$")(
+                self.read_option.read_directory).files()[0],
             self.sen_columns,
             self.read_option.output_directory
         )
@@ -159,6 +222,7 @@ class TableConverter:
             preprocess=[
                 resetCounter,
                 timeShifter,
+                invert_coordinate if self.read_option.inverted_coordinate else lambda df: df,
                 #lambda _,__: tee(display),
                 lambda meta, _: setShiftedTime(
                     meta.start_datetime,
@@ -464,6 +528,12 @@ def toDateTime(df):
         df.Second.values,
     )
     return pd.concat([df, pd.Series(dt, index=df.index, name="datetime")], axis=1)
+
+
+def invert_coordinate(df):
+    df["Velocity Y [m/s]"] = - df["Velocity Y [m/s"]
+    df["Velocity Z [m/s]"] = - df["Velocity Z [m/s"]
+    return df
 
 
 if __name__ is "__main__":
