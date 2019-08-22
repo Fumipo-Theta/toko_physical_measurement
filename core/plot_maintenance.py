@@ -354,7 +354,7 @@ class SiteObject:
 def bandPlot(xpos: Tuple[list], **kwargs):
     import structured_plot.plot_action as plot
 
-    return plot.yband(xpos=plot.multiple(*xpos), **kwargs)
+    return plot.yband(xpos=xpos, **kwargs)
 
 
 def genMaintenanceBox(maintenancePeriods: List[IPeriod_with_window], **kwargs):
