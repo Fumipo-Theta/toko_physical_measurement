@@ -26,7 +26,7 @@ class VectorReadOption:
                  start_datetime: datetime.datetime,
                  observed_time_window: List[str],
                  time_window: List[str],
-                 inverted_coordinate: False,
+                 inverted_coordinate: bool=False,
                  burst_time: int=2880,
                  header_row: int=None,
                  unit_timeshift: dict={
@@ -192,7 +192,7 @@ class VectorConverter:
         ))
 
     def convert_vhd(self):
-        TableConverter.convert_csv(
+        VectorConverter.convert_csv(
             PathList.match(r"\.vhd$")(
                 self.read_option.read_directory).files()[0],
             self.vhd_columns,
@@ -201,7 +201,7 @@ class VectorConverter:
         print("vhd file converted to csv.")
 
     def convert_sen(self):
-        TableConverter.convert_csv(
+        VectorConverter.convert_csv(
             PathList.match(r"\.sen$")(
                 self.read_option.read_directory).files()[0],
             self.sen_columns,
@@ -222,7 +222,7 @@ class VectorConverter:
             preprocess=[
                 resetCounter,
                 timeShifter,
-                invert_coordinate if self.read_option.inverted_coordinate else lambda df: df,
+                lambda meta, _: invert_coordinate if meta.inverted_coordinate else lambda df: df,
                 #lambda _,__: tee(display),
                 lambda meta, _: setShiftedTime(
                     meta.start_datetime,
@@ -531,8 +531,8 @@ def toDateTime(df):
 
 
 def invert_coordinate(df):
-    df["Velocity Y [m/s]"] = - df["Velocity Y [m/s"]
-    df["Velocity Z [m/s]"] = - df["Velocity Z [m/s"]
+    df["Velocity Y [m/s]"] = - df["Velocity Y [m/s]"]
+    df["Velocity Z [m/s]"] = - df["Velocity Z [m/s]"]
     return df
 
 
