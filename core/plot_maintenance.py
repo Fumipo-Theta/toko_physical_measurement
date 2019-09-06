@@ -483,11 +483,13 @@ def presetSubplot(default: PresetSetup):
 
         subplot = SubplotTime(**subplotStyle)\
             .add(
-            data=DuplicateLast(*get_csv_file_list(preset["directory"], fileSelector)),
+            data=DuplicateLast(
+                *get_csv_file_list(preset["directory"], fileSelector)),
             dataInfo=preset["dataInfo"],
             index=preset.get("index", None),
             plot=[*preset["plot"], *plot] if not plotOverwrite else plotOverwrite,
             limit=subplotLimit,
+            x="index",
             **d.mix(
                 preset["option"],
                 option,
@@ -495,18 +497,7 @@ def presetSubplot(default: PresetSetup):
             )
 
         )
-        """
-        subplot = SubplotTime.create(**subplotStyle)\
-            .setPreset(default.get_preset())\
-            .usePreset(
-                preset_name,
-                fileSelector=[matchCsv, *fileSelector],
-                plot=[*plot],
-                option={**option},
-                limit=subplotLimit,
-                **kwd
-        )
-        """
+
         return subplot
     return generate
 
