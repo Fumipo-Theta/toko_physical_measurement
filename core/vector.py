@@ -126,7 +126,7 @@ class Vector:
         return apply
 
     @staticmethod
-    def enumerate_burst_in(time_range):
+    def enumerate_burst_in(time_range, format="%y/%m/%d %H:%M:%f"):
         """
         Enumerate burst count at least overwrapped with the given time range.
 
@@ -155,8 +155,8 @@ class Vector:
         def apply(df):
             return [(
                 bc,
-                [_df.head(1).index.strftime("%y/%m/%d %H:%M:%f").values[0],
-                 _df.tail(1).index.strftime("%y/%m/%d %H:%M:%f").values[0]]
+                [_df.head(1).index.strftime(format).values[0],
+                 _df.tail(1).index.strftime(format).values[0]]
             ) for bc, _df in dataframe.time_range(dataframe.close_interval)(*time_range)(df).groupby("Burst counter []")
             ]
         return apply

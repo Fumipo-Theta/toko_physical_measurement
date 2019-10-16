@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 
 from structured_plot import Figure, SubplotTime, save_plot, FigureSizing
-from structured_plot.plot_action.action import DuplicateLast
+from iter_helper import DuplicateLast
 from data_loader import PathList
 from func_helper import pip, tee, identity
 import iter_helper as it
