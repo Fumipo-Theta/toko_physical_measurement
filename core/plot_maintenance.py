@@ -466,8 +466,8 @@ def presetSubplot(default: PresetSetup):
         figure.show()
 
     """
-    def as_tuple(ite):
-        return ite if type(ite) is tuple else tuple(ite)
+    # def as_tuple(ite):
+    #    return ite if type(ite) is tuple else tuple(ite)
 
     def get_csv_file_list(directorys, file_selector):
         if type(directorys) is tuple:
