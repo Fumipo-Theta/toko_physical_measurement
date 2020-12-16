@@ -53,9 +53,9 @@ class PresetSetup:
         return self.ylim
 
     def get_limit(self, axis="both"):
-        if axis is "x":
+        if axis == "x":
             return {"xlim": self.get_xlim()}
-        elif axis is "y":
+        elif axis == "y":
             return {"ylim": self.get_ylim()}
         else:
             return {
@@ -102,7 +102,7 @@ class IPeriod_with_window:
     def get_period(self) -> Tuple[List[str], List[str]]:
         pass
 
-    def get_start_date(self)->str:
+    def get_start_date(self) -> str:
         pass
 
     def get_end_date(self) -> str:
@@ -117,12 +117,12 @@ class IPeriod_with_window:
 
 class Period_with_window(IPeriod_with_window):
 
-    def __init__(self, period, start_window_time: str="00:00:00", end_window_time: str="23:59:59"):
+    def __init__(self, period, start_window_time: str = "00:00:00", end_window_time: str = "23:59:59"):
         self.start_window_time = start_window_time
         self.end_window_time = end_window_time
         self.set_period(period)
 
-    def is_start_date(self, date: str)-> bool:
+    def is_start_date(self, date: str) -> bool:
         return self.start_date == date
 
     def is_end_date(self, date: str) -> bool:
@@ -150,7 +150,7 @@ class Period_with_window(IPeriod_with_window):
             f"{self.end_date} {self.end_window_time}"
         ]
 
-    def get_period(self)-> Tuple[List[str], List[str]]:
+    def get_period(self) -> Tuple[List[str], List[str]]:
         return (
             self.period,
             self.window
@@ -164,7 +164,7 @@ class IPeriodStorage:
     def set_a_period(self):
         pass
 
-    def get_periods(self)-> List[IPeriod_with_window]:
+    def get_periods(self) -> List[IPeriod_with_window]:
         pass
 
     def get_start_dates(self) -> List[str]:
@@ -192,7 +192,7 @@ class PeriodStorage(IPeriodStorage):
         period_and_window = self.Period_with_window(period)
         self._storage.update({self._hash(period): period_and_window})
 
-    def get_periods(self)-> List[IPeriod_with_window]:
+    def get_periods(self) -> List[IPeriod_with_window]:
         return self._storage.values()
 
     def _hash(self, period: List[str]) -> str:
@@ -220,7 +220,7 @@ class PeriodStorage(IPeriodStorage):
         )(self.get_periods())
 
     @staticmethod
-    def IPeriod_with_window()-> IPeriod_with_window:
+    def IPeriod_with_window() -> IPeriod_with_window:
         return Period_with_window
 
 
@@ -252,7 +252,7 @@ class SiteObject:
     def get_file_selector(self) -> List[str]:
         return [self.get_name()]
 
-    def set_maintenance(self, list_of_periods: List[List[str]], key: str="default"):
+    def set_maintenance(self, list_of_periods: List[List[str]], key: str = "default"):
         """
         arg = [[str,str], [str,str],...]
         """
@@ -265,9 +265,9 @@ class SiteObject:
 
     def get_maintenance(
         self,
-        start_dates: Optional[List[str]]=None,
-        end_dates: Optional[List[str]]=None,
-        key: str="default"
+        start_dates: Optional[List[str]] = None,
+        end_dates: Optional[List[str]] = None,
+        key: str = "default"
     ) -> List[Tuple[List[str], List[str]]]:
         _key = "default" if key not in self.maintenance else key
         return SiteObject._get_periods(
@@ -276,7 +276,7 @@ class SiteObject:
             end_dates
         )
 
-    def set_interval(self, list_of_periods: List[List[str]], key: str="default"):
+    def set_interval(self, list_of_periods: List[List[str]], key: str = "default"):
         if key not in self.interval:
             self.interval[key] = SiteObject.IPeriodStorage()
 
@@ -286,9 +286,9 @@ class SiteObject:
 
     def get_interval(
         self,
-        start_dates: Optional[List[str]]=None,
-        end_dates: Optional[List[str]]=None,
-        key: str="default"
+        start_dates: Optional[List[str]] = None,
+        end_dates: Optional[List[str]] = None,
+        key: str = "default"
     ) -> List[Tuple[List[str], List[str]]]:
         _key = "default" if key not in self.interval else key
         return SiteObject._get_periods(
@@ -330,8 +330,8 @@ class SiteObject:
     @staticmethod
     def _get_periods(
         storage: IPeriodStorage,
-        start_dates: Optional[List[str]]=None,
-        end_dates: Optional[List[str]]=None
+        start_dates: Optional[List[str]] = None,
+        end_dates: Optional[List[str]] = None
     ) -> List[IPeriod_with_window]:
 
         start_date_filter = it.filtering(lambda p: p.get_start_date(
@@ -347,7 +347,7 @@ class SiteObject:
         )(storage.get_periods())
 
     @staticmethod
-    def IPeriodStorage()-> IPeriodStorage:
+    def IPeriodStorage() -> IPeriodStorage:
         return PeriodStorage()
 
 
@@ -475,7 +475,7 @@ def presetSubplot(default: PresetSetup):
         else:
             return [PathList.match(matchCsv, *file_selector)(directorys)]
 
-    def generate(preset_name: str, fileSelector: list=[], plot=[], option={}, limit={}, style={}, plotOverwrite=[], **kwargs):
+    def generate(preset_name: str, fileSelector: list = [], plot=[], option={}, limit={}, style={}, plotOverwrite=[], **kwargs):
         subplotStyle = {**default.get_axes_style(), **style}
         subplotLimit = {**default.get_limit("x"), **limit}
 
